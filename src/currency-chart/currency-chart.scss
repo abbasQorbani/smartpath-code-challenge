@@ -26,26 +26,64 @@ $dash-color: #d8d6d6;
     @include flex(row, space-between, unset, nowrap);
     background-color: $pure-white;
     border-radius: 1rem;
-    padding: 2rem 1rem 2rem 3rem;
+    padding: 2rem 1rem 3rem 3rem;
     box-sizing: border-box;
     position: relative;
     &__triple-chart {
         flex: 0 0 calc(10% - 1.5rem);
         @include flex(row, space-between, flex-end, nowrap);
+        position: relative;
     }
     &__high-chart, &__mid-chart, &__low-chart {
         flex: 0 0 20%;
         height: 100%;
         border-radius: 3px;
+        position: relative;
+        cursor: pointer;
     }
     &__high-chart {
         background-color: $high-color;
+        &:hover {
+            >.full-chart-holder__chart-tool-tip {
+                background-color: $high-color;
+                display: block;
+            }
+        }
     }
     &__mid-chart {
         background-color: $mid-color;
+        &:hover {
+            >.full-chart-holder__chart-tool-tip {
+                background-color: $mid-color;
+                display: block;
+                color: black;
+            }
+        }
     }
     &__low-chart {
         background-color: $low-color;
+        &:hover {
+            >.full-chart-holder__chart-tool-tip {
+                background-color: $low-color;
+                display: block;
+            }
+        }
+    }
+    &__triple-chart-time {
+        position: absolute;
+        bottom: -2rem;
+        left: 0;
+    }
+    &__chart-tool-tip {
+        display: none;
+        position: absolute;
+        z-index: 2;
+        border-radius: 0 .3rem .3rem 0;
+        color: $pure-white;
+        padding: 0 .3rem;
+        box-sizing: border-box;
+        top: .5rem;
+        left: 100%;
     }
 }
 
@@ -60,12 +98,16 @@ $dash-color: #d8d6d6;
     box-sizing: border-box;
     overflow: hidden;
     &__title-holder {
+        display: none;
         width: 100%;
         text-align: center;
         margin-bottom: 1rem;
         p, strong {
             margin: 0;
             padding: 0;
+        }
+        &--active {
+            display: block;
         }
     }
     &__single-chart-parent {
@@ -85,6 +127,17 @@ $dash-color: #d8d6d6;
         height: 100%;
         background-color: $high-color;
         border-radius: 6px;
+        position: relative;
+    }
+    &__single-chart-tool-tip {
+        position: absolute;
+        top: 1rem;
+        left: 100%;
+        background-color: $high-color;
+        border-radius: 0 .3rem .3rem 0;
+        color: $pure-white;
+        padding: 0 .2rem;
+        box-sizing: border-box;
     }
     &__bullet-holder {
         @include flex(row, space-between, center, nowrap);
