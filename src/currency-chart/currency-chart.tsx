@@ -62,16 +62,17 @@ interface MakeChartVisible {
 interface ComponentDataModel {
     collectHighAndLowValues: CollectHighAndLowValues;
     charts: Charts[];
-    serverData?: CurrencyRequestResponse;
+    serverData?: CurrencyData[];
     level: Level;
     makeChartVisible: MakeChartVisible;
+    userSession: boolean;
+    bulletCounter: number;
+    slideCounter: number;
+    titleCounter: number;
 }
 
 export default class CurrencyChart extends React.Component {
     state: ComponentDataModel;
-    bulletCounter: number = 1;
-    slideCounter: number = 1;
-    titleCounter: number = 1;
 
     constructor (props: {} | Readonly<{}>) {
         super(props)
@@ -98,29 +99,73 @@ export default class CurrencyChart extends React.Component {
                 average: true,
                 high: true,
                 low: true
-            }
+            },
+            userSession: false,
+            bulletCounter: 1,
+            slideCounter: 1,
+            titleCounter: 1
         };
     }
 
     componentDidMount() {
+        let checkedSession = this.checkUserSession();
+        if (checkedSession) {
+            this.getDataFromServer();
+        } else {
+            this.setState({
+                charts: JSON.parse(String(localStorage.getItem('chart'))),
+                level: JSON.parse(String(localStorage.getItem('level'))),
+                collectHighAndLowValues: JSON.parse(String(localStorage.getItem('highAndLow')))
+            })
+        }
+    }
+
+    componentDidUpdate() {
         document.querySelector('.single-chart-holder__single-chart-parent')?.classList.add('single-chart-holder__single-chart-parent--active');
         document.querySelector('.single-chart-holder__bullet')?.classList.add('single-chart-holder__bullet--active');
         document.querySelector('.single-chart-holder__title-holder')?.classList.add('single-chart-holder__title-holder--active');
-        this.getDataFromServer();
+        document.querySelectorAll('.single-chart-holder__bullet').forEach(element => {
+            element.addEventListener('click', this.makeSlider);
+        });
     }
 
     async getDataFromServer() {
         await axios.get<CurrencyRequestResponse>('https://min-api.cryptocompare.com/data/v2/histohour?fsym=BTC&tsym=USD&limit=9')
         .then((response) => {
-            this.state.serverData = response.data;
+            this.state.serverData = response.data.Data.Data;
         });
         if(this.state.serverData) {
-            this.getMinMaxValue(this.state.serverData.Data.Data);
-            this.generateChartsData(this.state.serverData.Data.Data);
+            this.getMinMaxValue(this.state.serverData);
+            this.generateChartsData(this.state.serverData);
         }
-        document.querySelectorAll('.single-chart-holder__bullet').forEach(element => {
-            element.addEventListener('click', this.makeSlider);
-        });
+    }
+
+    checkUserSession(): boolean {
+        let getDate = new Date();
+        let getTime = getDate.getTime();
+        getTime += 3600 * 1000;
+        if (new Date(document.cookie).getTime() < new Date().getTime()) {
+            getDate.setTime(getTime);
+            document.cookie = getDate.toLocaleString();
+            localStorage.clear();
+            this.setState({
+                userSession: false
+            })
+            return true;
+        } else if (!document.cookie) {
+            getDate.setTime(getTime);
+            document.cookie = getDate.toLocaleString();
+            localStorage.clear();
+            this.setState({
+                userSession: false
+            })
+            return true;
+        } else {
+            this.setState({
+                userSession: true
+            })
+            return false;
+        }
     }
 
     getMinMaxValue(data: CurrencyData[]): void {
@@ -137,8 +182,17 @@ export default class CurrencyChart extends React.Component {
                 high: sortedHigh[sortedHigh.length - 1],
                 low: sortedLow[0],
                 difference: sortedHigh[sortedHigh.length - 1] - sortedLow[0]
+            },
+            level: {
+                levelOne: (sortedHigh[sortedHigh.length - 1] * 25) / 100,
+                levelTwo: (sortedHigh[sortedHigh.length - 1] * 50) / 100,
+                levelThree: (sortedHigh[sortedHigh.length - 1] * 75) / 100
             }
         });
+        if (!this.state.userSession) {
+            localStorage.setItem('level', JSON.stringify(this.state.level));
+            localStorage.setItem('highAndLow', JSON.stringify(this.state.collectHighAndLowValues));
+        }
     }
 
     generateChartsData(data: CurrencyData[]): void {
@@ -157,6 +211,9 @@ export default class CurrencyChart extends React.Component {
                 time: data.time
             });
         });
+        if (!this.state.userSession) {
+            localStorage.setItem('chart', JSON.stringify(generatedChartsValue));
+        }
         this.setState({
             charts: generatedChartsValue
         })
@@ -249,14 +306,14 @@ export default class CurrencyChart extends React.Component {
                                 </div>
                             )
                         }
-                        <div className="chart-row__top-level"></div>
-                        <div className="chart-row__mid-level"></div>
-                        <div className="chart-row__low-level"></div>
+                        <div className="chart-row__top-level">{Math.round(this.state.level.levelThree)}</div>
+                        <div className="chart-row__mid-level">{Math.round(this.state.level.levelTwo)}</div>
+                        <div className="chart-row__low-level">{Math.round(this.state.level.levelOne)}</div>
                     </div>
                     <div className="single-chart-holder">
                         {
                             this.state.charts.map(chart => 
-                                <div className="single-chart-holder__title-holder" data-index={this.titleCounter++}>
+                                <div className="single-chart-holder__title-holder" data-index={this.state.titleCounter++}>
                                     <p>Market volume of</p>
                                     <strong>{new Date(chart.time).getHours() + ':' + new Date(chart.time).getMinutes() + ':' + new Date(chart.time).getSeconds()}</strong>
                                 </div>
@@ -266,16 +323,16 @@ export default class CurrencyChart extends React.Component {
                         {
                             this.state.charts.map(chart => 
                                 <div className="single-chart-holder__single-chart-parent"
-                                     data-index={this.slideCounter++}>
+                                     data-index={this.state.slideCounter++}>
                                     <div className="single-chart-holder__single-chart"
                                          style={{'height': chart.high.percentage + '%'}}>
                                              <div className="single-chart-holder__single-chart-tool-tip">
                                                  {chart.high.originalValue}
                                              </div>
                                          </div>
-                                    <div className="chart-row__top-level"></div>
-                                    <div className="chart-row__mid-level"></div>
-                                    <div className="chart-row__low-level"></div>
+                                        <div className="chart-row__top-level">{Math.round(this.state.level.levelThree)}</div>
+                                        <div className="chart-row__mid-level">{Math.round(this.state.level.levelTwo)}</div>
+                                        <div className="chart-row__low-level">{Math.round(this.state.level.levelOne)}</div>
                                 </div>
                             )
                         }
@@ -283,7 +340,7 @@ export default class CurrencyChart extends React.Component {
                         {   
                             this.state.charts.map(chart => 
                                 <div className="single-chart-holder__bullet"
-                                     data-index={this.bulletCounter++}></div>
+                                     data-index={this.state.bulletCounter++}></div>
                             )
                         }
                         </div>
