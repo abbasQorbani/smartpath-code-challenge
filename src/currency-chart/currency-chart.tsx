@@ -1,6 +1,10 @@
 import React from 'react';
 import './currency-chart.scss';
 import axios from 'axios';
+import TripleChart from '../triple-chart/triple-chart';
+import SingleChart from '../single-chart/single-chart';
+import ChartControler from '../chart-controler/chart-controler';
+// import CurrencyRange from '../currency-range/currency-range';
 
 interface CurrencyData {
     close: number;
@@ -51,6 +55,12 @@ interface Charts {
     average: ChartDataModel;
     low: ChartDataModel;
     time: number;
+    sliderCounter: number;
+}
+
+interface ChartsData {
+    charts: Charts[];
+    level: Level;
 }
 
 interface MakeChartVisible {
@@ -61,19 +71,14 @@ interface MakeChartVisible {
 
 interface ComponentDataModel {
     collectHighAndLowValues: CollectHighAndLowValues;
-    charts: Charts[];
+    charts: ChartsData;
     serverData?: CurrencyData[];
-    level: Level;
     makeChartVisible: MakeChartVisible;
     userSession: boolean;
-    bulletCounter: number;
-    slideCounter: number;
-    titleCounter: number;
 }
 
 export default class CurrencyChart extends React.Component {
     state: ComponentDataModel;
-
     constructor (props: {} | Readonly<{}>) {
         super(props)
         this.state = {
@@ -82,51 +87,38 @@ export default class CurrencyChart extends React.Component {
                 difference: 0,
                 low: 0
             },
-            level: {
-                levelOne: 0,
-                levelThree: 0,
-                levelTwo: 0
-            },
-            charts: [
-                {
-                    average: {originalValue: 0, percentage: 0},
-                    high: {percentage: 0, originalValue: 0},
-                    low: {originalValue: 0, percentage: 0},
-                    time: 0
+            charts: {
+                charts: [],
+                level: {
+                    levelOne: 0,
+                    levelThree: 0,
+                    levelTwo: 0
                 }
-            ],
+            },
             makeChartVisible: {
                 average: true,
                 high: true,
                 low: true
             },
-            userSession: false,
-            bulletCounter: 1,
-            slideCounter: 1,
-            titleCounter: 1
+            userSession: false
         };
     }
 
     componentDidMount() {
+        document.querySelector('.single-chart-holder__bullet')?.classList.add('single-chart-holder__bullet--active');
         let checkedSession = this.checkUserSession();
         if (checkedSession) {
             this.getDataFromServer();
         } else {
             this.setState({
-                charts: JSON.parse(String(localStorage.getItem('chart'))),
-                level: JSON.parse(String(localStorage.getItem('level'))),
+                ...this.state,
+                charts: {
+                    charts: JSON.parse(String(localStorage.getItem('chart'))),
+                    level: JSON.parse(String(localStorage.getItem('level')))
+                },
                 collectHighAndLowValues: JSON.parse(String(localStorage.getItem('highAndLow')))
             })
         }
-    }
-
-    componentDidUpdate() {
-        document.querySelector('.single-chart-holder__single-chart-parent')?.classList.add('single-chart-holder__single-chart-parent--active');
-        document.querySelector('.single-chart-holder__bullet')?.classList.add('single-chart-holder__bullet--active');
-        document.querySelector('.single-chart-holder__title-holder')?.classList.add('single-chart-holder__title-holder--active');
-        document.querySelectorAll('.single-chart-holder__bullet').forEach(element => {
-            element.addEventListener('click', this.makeSlider);
-        });
     }
 
     async getDataFromServer() {
@@ -137,6 +129,7 @@ export default class CurrencyChart extends React.Component {
         if(this.state.serverData) {
             this.getMinMaxValue(this.state.serverData);
             this.generateChartsData(this.state.serverData);
+            this.findTolerance(this.state.serverData);
         }
     }
 
@@ -149,6 +142,7 @@ export default class CurrencyChart extends React.Component {
             document.cookie = getDate.toLocaleString();
             localStorage.clear();
             this.setState({
+                ...this.state,
                 userSession: false
             })
             return true;
@@ -157,11 +151,13 @@ export default class CurrencyChart extends React.Component {
             document.cookie = getDate.toLocaleString();
             localStorage.clear();
             this.setState({
+                ...this.state,
                 userSession: false
             })
             return true;
         } else {
             this.setState({
+                ...this.state,
                 userSession: true
             })
             return false;
@@ -178,100 +174,99 @@ export default class CurrencyChart extends React.Component {
         sortedHigh = sortedHigh.sort();
         sortedLow = sortedLow.sort();
         this.setState({
+            ...this.state,
             collectHighAndLowValues: {
                 high: sortedHigh[sortedHigh.length - 1],
                 low: sortedLow[0],
                 difference: sortedHigh[sortedHigh.length - 1] - sortedLow[0]
             },
-            level: {
-                levelOne: (sortedHigh[sortedHigh.length - 1] * 25) / 100,
-                levelTwo: (sortedHigh[sortedHigh.length - 1] * 50) / 100,
-                levelThree: (sortedHigh[sortedHigh.length - 1] * 75) / 100
+            charts: {
+                charts: this.state.charts.charts,
+                level: {
+                    levelOne: (sortedHigh[sortedHigh.length - 1] * 25) / 100,
+                    levelTwo: (sortedHigh[sortedHigh.length - 1] * 50) / 100,
+                    levelThree: (sortedHigh[sortedHigh.length - 1] * 75) / 100
+                }
             }
         });
+        ;
         if (!this.state.userSession) {
-            localStorage.setItem('level', JSON.stringify(this.state.level));
+            localStorage.setItem('level', JSON.stringify(this.state.charts.level));
             localStorage.setItem('highAndLow', JSON.stringify(this.state.collectHighAndLowValues));
         }
+    }
+
+    findTolerance(data: CurrencyData[]): void {
+        data.forEach(e => {
+            console.log(e);
+        })
+
     }
 
     generateChartsData(data: CurrencyData[]): void {
         let calculateHighPercentage: number = 0,
             calculateAveragePercentage: number = 0,
             calculateLowPercentage: number = 0,
-            generatedChartsValue: Charts[] = [];
+            generatedChartsValue: Charts[] = [],
+            sliderCounter: number = 0;
         data.forEach(data => {
+            sliderCounter++;
             calculateHighPercentage =  (this.state.collectHighAndLowValues.high - data.high) * 100 / this.state.collectHighAndLowValues.high;
-            calculateAveragePercentage = (this.state.collectHighAndLowValues.high - data.open) * 100 / this.state.collectHighAndLowValues.high;
+            calculateAveragePercentage = (this.state.collectHighAndLowValues.high - ((data.high + data.low) / 2)) * 100 / this.state.collectHighAndLowValues.high;
             calculateLowPercentage = (this.state.collectHighAndLowValues.high - data.low) * 100 / this.state.collectHighAndLowValues.high;
             generatedChartsValue.push({
-                average: {percentage: 100 - calculateAveragePercentage, originalValue: data.open},
+                average: {percentage: 100 - calculateAveragePercentage, originalValue: ((data.high + data.low) / 2)},
                 high:{percentage: 100 - calculateHighPercentage, originalValue: data.high},
                 low: {percentage: 100 - calculateLowPercentage, originalValue: data.low},
-                time: data.time
+                time: data.time,
+                sliderCounter: sliderCounter
             });
         });
         if (!this.state.userSession) {
             localStorage.setItem('chart', JSON.stringify(generatedChartsValue));
         }
         this.setState({
-            charts: generatedChartsValue
+            ...this.state,
+            charts: {
+                charts: generatedChartsValue,
+                level: this.state.charts.level
+            }
         })
     }
 
-    makeSlider(event: any) {
-        document.querySelectorAll('.single-chart-holder__bullet').forEach(element => {
-            element.classList.remove('single-chart-holder__bullet--active');
-        });
-        document.querySelectorAll('.single-chart-holder__single-chart-parent').forEach(element => {
-            element.classList.remove('single-chart-holder__single-chart-parent--active');
-            console.log(event);
-            console.log(event.target.dataset.index, element.getAttribute('data-index'));
-            if (event.target.dataset.index === element.getAttribute('data-index')) {
-                element.classList.add('single-chart-holder__single-chart-parent--active');
-                event.target.classList.add('single-chart-holder__bullet--active');
-            }
-        });
-        document.querySelectorAll('.single-chart-holder__title-holder').forEach(element => {
-            element.classList.remove('single-chart-holder__title-holder--active');
-            console.log(event);
-            console.log(event.target.dataset.index, element.getAttribute('data-index'));
-            if (event.target.dataset.index === element.getAttribute('data-index')) {
-                element.classList.add('single-chart-holder__title-holder--active');
-            }
-        });
-    }
-
-    makeChartVisible(type: string) {
+    makeChartVisible(type: string): void {
         switch(type) { 
             case 'high': {
                 this.setState({
+                    ...this.state,
                     makeChartVisible: {
                         high: !this.state.makeChartVisible.high,
                         average: this.state.makeChartVisible.average,
                         low: this.state.makeChartVisible.low
                     }
-                })
+                });
                 break; 
             } 
             case 'average': {
                 this.setState({
+                    ...this.state,
                     makeChartVisible: {
                         high: this.state.makeChartVisible.high,
                         average: !this.state.makeChartVisible.average,
                         low: this.state.makeChartVisible.low
                     }
-                })
+                });
                 break; 
             } 
             case 'low': {
                 this.setState({
+                    ...this.state,
                     makeChartVisible: {
                         high: this.state.makeChartVisible.high,
                         average: this.state.makeChartVisible.average,
                         low: !this.state.makeChartVisible.low
                     }
-                })
+                });
                 break; 
             } 
             default: { 
@@ -284,102 +279,15 @@ export default class CurrencyChart extends React.Component {
         return (
             <>
                 <section className="chart-holder">
-                    <div className="full-chart-holder">
-                        {
-                            this.state.charts.map(chart => 
-                                <div className="full-chart-holder__triple-chart">
-                                    <div className="full-chart-holder__high-chart" style={{'height': chart.high.percentage + '%',
-                                         'visibility': this.state.makeChartVisible.high ? 'visible' : 'hidden'}}>
-                                        <div className="full-chart-holder__chart-tool-tip" >{chart.high.originalValue}</div>
-                                    </div>
-                                    <div className="full-chart-holder__mid-chart" style={{'height': chart.average.percentage + '%',
-                                         'visibility': this.state.makeChartVisible.average ? 'visible' : 'hidden'}}>
-                                        <div className="full-chart-holder__chart-tool-tip" >{chart.average.originalValue}</div>
-                                    </div>
-                                    <div className="full-chart-holder__low-chart" style={{'height': chart.low.percentage + '%',
-                                         'visibility': this.state.makeChartVisible.low ? 'visible' : 'hidden'}}>
-                                        <div className="full-chart-holder__chart-tool-tip" >{chart.low.originalValue}</div>
-                                    </div>
-                                    <div className="full-chart-holder__triple-chart-time">
-                                        {new Date(chart.time).getHours() + ':' + new Date(chart.time).getMinutes() + ':' + new Date(chart.time).getSeconds()}
-                                    </div>
-                                </div>
-                            )
-                        }
-                        <div className="chart-row__top-level">{Math.round(this.state.level.levelThree)}</div>
-                        <div className="chart-row__mid-level">{Math.round(this.state.level.levelTwo)}</div>
-                        <div className="chart-row__low-level">{Math.round(this.state.level.levelOne)}</div>
-                    </div>
-                    <div className="single-chart-holder">
-                        {
-                            this.state.charts.map(chart => 
-                                <div className="single-chart-holder__title-holder" data-index={this.state.titleCounter++}>
-                                    <p>Market volume of</p>
-                                    <strong>{new Date(chart.time).getHours() + ':' + new Date(chart.time).getMinutes() + ':' + new Date(chart.time).getSeconds()}</strong>
-                                </div>
-                            )
-                        }
-                            
-                        {
-                            this.state.charts.map(chart => 
-                                <div className="single-chart-holder__single-chart-parent"
-                                     data-index={this.state.slideCounter++}>
-                                    <div className="single-chart-holder__single-chart"
-                                         style={{'height': chart.high.percentage + '%'}}>
-                                             <div className="single-chart-holder__single-chart-tool-tip">
-                                                 {chart.high.originalValue}
-                                             </div>
-                                         </div>
-                                        <div className="chart-row__top-level">{Math.round(this.state.level.levelThree)}</div>
-                                        <div className="chart-row__mid-level">{Math.round(this.state.level.levelTwo)}</div>
-                                        <div className="chart-row__low-level">{Math.round(this.state.level.levelOne)}</div>
-                                </div>
-                            )
-                        }
-                        <div className="single-chart-holder__bullet-holder">
-                        {   
-                            this.state.charts.map(chart => 
-                                <div className="single-chart-holder__bullet"
-                                     data-index={this.state.bulletCounter++}></div>
-                            )
-                        }
-                        </div>
-                    </div>
+                        <TripleChart charts={this.state.charts.charts} level={this.state.charts.level} makeChartVisible={this.state.makeChartVisible}/>
+                        <SingleChart charts={this.state.charts.charts} level={this.state.charts.level} />
                 </section>
                 <section className="options-information-holder">
-                    <div className="options-holder">
-                        <div className="options-holder__title">
-                            <strong>Indexes</strong>
-                        </div>
-                        <div className="options-holder__check-box-holder">
-                            <input id="higher" className="options-holder__check-box" type="checkbox" name="" defaultChecked={this.state.makeChartVisible.high}/>
-                            <label className="options-holder__check-box-label higher" htmlFor="higher" onClick={e => this.makeChartVisible('high')}>
-                                Higher
-                            </label>
-                        </div>
-                        <div className="options-holder__check-box-holder">
-                            <input id="average" className="options-holder__check-box" type="checkbox" name="" defaultChecked={this.state.makeChartVisible.average}/>
-                            <label className="options-holder__check-box-label average" htmlFor="average" onClick={e => this.makeChartVisible('average')}>
-                                Average
-                            </label>
-                        </div>
-                        <div className="options-holder__check-box-holder">
-                            <input id="lower" className="options-holder__check-box" type="checkbox" name="" defaultChecked={this.state.makeChartVisible.low}/>
-                            <label className="options-holder__check-box-label lower" htmlFor="lower" onClick={e => this.makeChartVisible('low')}>
-                                Lower
-                            </label>
-                        </div>
-                    </div>
-                    <div className="information-holder">
-                        <div className="information-holder__maximum">
-                            <p>Maximum range:</p>
-                            <strong>{this.state.collectHighAndLowValues.high}</strong>
-                        </div>
-                        <div className="information-holder__minimum">
-                            <p>Minimum range:</p>
-                            <strong>{this.state.collectHighAndLowValues.low}</strong>
-                        </div>
-                    </div>
+                    <ChartControler average={this.state.makeChartVisible.average}
+                                    high={this.state.makeChartVisible.high}
+                                    low={this.state.makeChartVisible.low}
+                                    click={this.makeChartVisible.bind(this)}/>
+                    {/* <CurrencyRange  /> */}
                 </section>
             </>
         )
