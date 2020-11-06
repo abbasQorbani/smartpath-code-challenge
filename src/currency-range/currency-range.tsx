@@ -1,18 +1,18 @@
 import React from 'react';
 
-interface RangeTimes {
-    time1: number;
-    time2: number;
+interface ToleranceData {
+    time1: string;
+    time2: string;
 }
 
-interface Renge {
-    min: RangeTimes;
-    max: RangeTimes;
+interface ToleranceDataModel {
+    max: ToleranceData;
+    min: ToleranceData;
 }
 
-export default class CurrencyRange extends React.Component<Renge> {
-    state: Renge;
-    constructor (props: Renge) {
+export default class CurrencyRange extends React.Component<ToleranceDataModel> {
+    state: ToleranceDataModel;
+    constructor (props: ToleranceDataModel) {
         super(props);
         this.state = {
             max: props.max,
@@ -20,49 +20,25 @@ export default class CurrencyRange extends React.Component<Renge> {
         };
     }
 
-    componentDidMount() {
-    }
-
-    componentDidUpdate() {
-        document.querySelectorAll('.single-chart-holder__bullet').forEach(element => {
-            element.addEventListener('click', this.makeSlider);
-        });
-    }
-
-    componentWillReceiveProps(props: Renge) {
+    componentWillReceiveProps(props: ToleranceDataModel) {
         this.setState(props);
-    }
-
-    makeSlider(event: any) {
-        document.querySelectorAll('.single-chart-holder__bullet').forEach(element => {
-            element.classList.remove('single-chart-holder__bullet--active');
-        });
-        document.querySelectorAll('.single-chart-holder__single-chart-parent').forEach(element => {
-            element.classList.remove('single-chart-holder__single-chart-parent--active');
-            if (event.target.dataset.index === element.getAttribute('data-index')) {
-                element.classList.add('single-chart-holder__single-chart-parent--active');
-                event.target.classList.add('single-chart-holder__bullet--active');
-            }
-        });
-        document.querySelectorAll('.single-chart-holder__title-holder').forEach(element => {
-            element.classList.remove('single-chart-holder__title-holder--active');
-            if (event.target.dataset.index === element.getAttribute('data-index')) {
-                element.classList.add('single-chart-holder__title-holder--active');
-            }
-        });
     }
 
     render () {
         return (
             <div className="information-holder">
-                {/* <div className="information-holder__maximum">
+                <div className="information-holder__maximum">
                     <p>Maximum range:</p>
-                    <strong>{this.state.collectHighAndLowValues.high}</strong>
+                    <strong>{this.state.max.time1}</strong>
+                    <strong>   -   </strong>
+                    <strong>{this.state.max.time2}</strong>
                 </div>
                 <div className="information-holder__minimum">
                     <p>Minimum range:</p>
-                    <strong>{this.state.collectHighAndLowValues.low}</strong>
-                </div> */}
+                    <strong>{this.state.min.time1}</strong>
+                    <strong>   -   </strong>
+                    <strong>{this.state.min.time2}</strong>
+                </div>
             </div>
         )
     }

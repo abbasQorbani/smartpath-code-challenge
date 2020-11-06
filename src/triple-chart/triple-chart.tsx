@@ -1,21 +1,28 @@
 import React from 'react';
 
-interface ChartDataModel {
+interface ChartLevels {
+    levelOne: number;
+    levelTwo: number;
+    levelThree: number;
+}
+
+interface ChartData {
     percentage: number;
     originalValue: number;
 }
 
 interface Charts {
-    high: ChartDataModel;
-    average: ChartDataModel;
-    low: ChartDataModel;
+    high: ChartData;
+    average: ChartData;
+    low: ChartData;
     time: number;
+    sliderCounter: number;
 }
 
-interface Level {
-    levelOne: number;
-    levelTwo: number;
-    levelThree: number;
+interface ChartsDataModel {
+    charts: Charts[];
+    level: ChartLevels;
+    makeChartVisible: MakeChartVisible;
 }
 
 interface MakeChartVisible {
@@ -24,17 +31,11 @@ interface MakeChartVisible {
     low: boolean;
 }
 
-interface ChartsData {
-    charts: Charts[];
-    makeChartVisible: MakeChartVisible;
-    level: Level;
-}
 
 
-
-export default class TripleChart extends React.Component<ChartsData> {
-    state: ChartsData;
-    constructor (props: ChartsData) {
+export default class TripleChart extends React.Component<ChartsDataModel> {
+    state: ChartsDataModel;
+    constructor (props: ChartsDataModel) {
         super(props);
         this.state = {
             charts: props.charts,
@@ -43,7 +44,7 @@ export default class TripleChart extends React.Component<ChartsData> {
         };
     }
 
-    componentWillReceiveProps(props: ChartsData) {
+    componentWillReceiveProps(props: ChartsDataModel) {
         this.setState(props);
     }
 

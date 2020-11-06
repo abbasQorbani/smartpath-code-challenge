@@ -1,11 +1,11 @@
 import React from 'react';
 import './App.scss';
-import CurrencyChart from './currency-chart/currency-chart';
+import CurrencyChartGenerator from './currency-chart/currency-chart-generator';
 
 function App() {
   return (
     <div className="App">
-      <CurrencyChart />
+      <CurrencyChartGenerator />
     </div>
   );
 }

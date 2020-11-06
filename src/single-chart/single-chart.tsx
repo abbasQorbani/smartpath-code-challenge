@@ -1,35 +1,34 @@
 import React from 'react';
 
-interface ChartDataModel {
-    percentage: number;
-    originalValue: number;
-}
-
-interface Charts {
-    high: ChartDataModel;
-    average: ChartDataModel;
-    low: ChartDataModel;
-    time: number;
-    sliderCounter: number;
-}
-
-interface Level {
+interface ChartLevels {
     levelOne: number;
     levelTwo: number;
     levelThree: number;
 }
 
+interface ChartData {
+    percentage: number;
+    originalValue: number;
+}
 
-interface ChartsData {
+interface Charts {
+    high: ChartData;
+    average: ChartData;
+    low: ChartData;
+    time: number;
+    sliderCounter: number;
+}
+
+interface ChartsDataModel {
     charts: Charts[];
-    level: Level;
+    level: ChartLevels;
 }
 
 
 
-export default class SingleChart extends React.Component<ChartsData> {
-    state: ChartsData;
-    constructor (props: ChartsData) {
+export default class SingleChart extends React.Component<ChartsDataModel> {
+    state: ChartsDataModel;
+    constructor (props: ChartsDataModel) {
         super(props);
         this.state = {
             charts: props.charts,
@@ -37,20 +36,17 @@ export default class SingleChart extends React.Component<ChartsData> {
         };
     }
 
-    componentDidMount() {
-    }
-
     componentDidUpdate() {
         document.querySelectorAll('.single-chart-holder__bullet').forEach(element => {
-            element.addEventListener('click', this.makeSlider);
+            element.addEventListener('click', this.singleChartSlider);
         });
     }
 
-    componentWillReceiveProps(props: ChartsData) {
+    componentWillReceiveProps(props: ChartsDataModel) {
         this.setState(props);
     }
 
-    makeSlider(event: any) {
+    singleChartSlider(event: any): void {
         document.querySelectorAll('.single-chart-holder__bullet').forEach(element => {
             element.classList.remove('single-chart-holder__bullet--active');
         });

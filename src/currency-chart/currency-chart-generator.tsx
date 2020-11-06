@@ -1,10 +1,10 @@
 import React from 'react';
-import './currency-chart.scss';
+import './currency-chart-generator.scss';
 import axios from 'axios';
 import TripleChart from '../triple-chart/triple-chart';
 import SingleChart from '../single-chart/single-chart';
 import ChartControler from '../chart-controler/chart-controler';
-// import CurrencyRange from '../currency-range/currency-range';
+import CurrencyRange from '../currency-range/currency-range';
 
 interface CurrencyData {
     close: number;
@@ -18,15 +18,15 @@ interface CurrencyData {
     volumeTo: number;
 }
 
-interface CurrencyResponseData {
+interface ServerResponseData {
     aggregated: boolean;
     Data: CurrencyData[];
     timeFrom: number;
     timeTo: number;
 }
 
-interface CurrencyRequestResponse {
-    Data: CurrencyResponseData;
+interface ServerRequestResponse {
+    Data: ServerResponseData;
     hasWarning: boolean;
     message: string;
     response: string;
@@ -39,28 +39,28 @@ interface CollectHighAndLowValues {
     difference: number; 
 }
 
-interface Level {
+interface ChartLevels {
     levelOne: number;
     levelTwo: number;
     levelThree: number;
 }
 
-interface ChartDataModel {
+interface ChartData {
     percentage: number;
     originalValue: number;
 }
 
 interface Charts {
-    high: ChartDataModel;
-    average: ChartDataModel;
-    low: ChartDataModel;
+    high: ChartData;
+    average: ChartData;
+    low: ChartData;
     time: number;
     sliderCounter: number;
 }
 
-interface ChartsData {
+interface ChartsDataModel {
     charts: Charts[];
-    level: Level;
+    level: ChartLevels;
 }
 
 interface MakeChartVisible {
@@ -69,17 +69,28 @@ interface MakeChartVisible {
     low: boolean;
 }
 
-interface ComponentDataModel {
+interface ToleranceData {
+    time1: string;
+    time2: string;
+}
+
+interface ToleranceDataModel {
+    max: ToleranceData;
+    min: ToleranceData;
+}
+
+interface GeneratorDataModel {
     collectHighAndLowValues: CollectHighAndLowValues;
-    charts: ChartsData;
+    charts: ChartsDataModel;
     serverData?: CurrencyData[];
     makeChartVisible: MakeChartVisible;
     userSession: boolean;
+    ToleranceData: ToleranceDataModel;
 }
 
-export default class CurrencyChart extends React.Component {
-    state: ComponentDataModel;
-    constructor (props: {} | Readonly<{}>) {
+export default class CurrencyChartGenerator extends React.Component {
+    state: GeneratorDataModel;
+    constructor (props: GeneratorDataModel) {
         super(props)
         this.state = {
             collectHighAndLowValues: {
@@ -100,15 +111,18 @@ export default class CurrencyChart extends React.Component {
                 high: true,
                 low: true
             },
+            ToleranceData: {
+                max: {time1: '', time2: ''},
+                min: {time1: '', time2: ''}
+            },
             userSession: false
         };
     }
 
     componentDidMount() {
-        document.querySelector('.single-chart-holder__bullet')?.classList.add('single-chart-holder__bullet--active');
-        let checkedSession = this.checkUserSession();
+        let checkedSession = this.makeUserSession();
         if (checkedSession) {
-            this.getDataFromServer();
+            this.getChartsDataFromServer();
         } else {
             this.setState({
                 ...this.state,
@@ -116,24 +130,25 @@ export default class CurrencyChart extends React.Component {
                     charts: JSON.parse(String(localStorage.getItem('chart'))),
                     level: JSON.parse(String(localStorage.getItem('level')))
                 },
-                collectHighAndLowValues: JSON.parse(String(localStorage.getItem('highAndLow')))
+                collectHighAndLowValues: JSON.parse(String(localStorage.getItem('highAndLow'))),
+                ToleranceData: JSON.parse(String(localStorage.getItem('tolerance')))
             })
         }
     }
 
-    async getDataFromServer() {
-        await axios.get<CurrencyRequestResponse>('https://min-api.cryptocompare.com/data/v2/histohour?fsym=BTC&tsym=USD&limit=9')
+    async getChartsDataFromServer() {
+        await axios.get<ServerRequestResponse>('https://min-api.cryptocompare.com/data/v2/histohour?fsym=BTC&tsym=USD&limit=9')
         .then((response) => {
             this.state.serverData = response.data.Data.Data;
         });
         if(this.state.serverData) {
-            this.getMinMaxValue(this.state.serverData);
+            this.generateMinMaxValue(this.state.serverData);
             this.generateChartsData(this.state.serverData);
-            this.findTolerance(this.state.serverData);
+            this.setToleranceData(this.state.serverData);
         }
     }
 
-    checkUserSession(): boolean {
+    makeUserSession(): boolean {
         let getDate = new Date();
         let getTime = getDate.getTime();
         getTime += 3600 * 1000;
@@ -164,7 +179,7 @@ export default class CurrencyChart extends React.Component {
         }
     }
 
-    getMinMaxValue(data: CurrencyData[]): void {
+    generateMinMaxValue(data: CurrencyData[]): void {
         let sortedHigh: number[] = [],
             sortedLow: number[] = [];
         data.forEach(data => {
@@ -196,13 +211,6 @@ export default class CurrencyChart extends React.Component {
         }
     }
 
-    findTolerance(data: CurrencyData[]): void {
-        data.forEach(e => {
-            console.log(e);
-        })
-
-    }
-
     generateChartsData(data: CurrencyData[]): void {
         let calculateHighPercentage: number = 0,
             calculateAveragePercentage: number = 0,
@@ -228,21 +236,65 @@ export default class CurrencyChart extends React.Component {
         this.setState({
             ...this.state,
             charts: {
-                charts: generatedChartsValue,
-                level: this.state.charts.level
+                ...this.state.charts,
+                charts: generatedChartsValue
             }
         })
     }
 
-    makeChartVisible(type: string): void {
+    setToleranceData(serverDAta: CurrencyData[]) {
+        debugger;
+        if (serverDAta) {
+            let lastHighValueMax: number = serverDAta[0].high,
+                currentDifferenceMax: number = 0,
+                lastDifferenceMax: number = 0,
+                counterMax: number = 0;
+            for (counterMax = 0; counterMax <= serverDAta.length -1 ; counterMax ++) {
+                currentDifferenceMax = serverDAta[counterMax].high - lastHighValueMax;
+                if(currentDifferenceMax > lastDifferenceMax) {
+                    currentDifferenceMax = lastDifferenceMax;
+                    this.setState({
+                        ...this.state,
+                        ToleranceData: {
+                            ...this.state.ToleranceData,
+                            max: {time1: new Date(serverDAta[counterMax - 1].time * 1000).toLocaleTimeString('en-GB'),
+                                  time2: new Date(serverDAta[counterMax].time * 1000).toLocaleTimeString('en-GB')}
+                        },
+                    })
+                }
+            }
+            let lastHighValueMin: number = serverDAta[0].high,
+                currentDifferenceMin: number = 0,
+                lastDifferenceMin: number = 0,
+                counterMin: number = 0;
+            for (counterMin = 0; counterMin <= serverDAta.length -1 ; counterMin ++) {
+                currentDifferenceMin = serverDAta[counterMin].high - lastHighValueMin;
+                if(currentDifferenceMin < lastDifferenceMin) {
+                    currentDifferenceMin = lastDifferenceMin;
+                    this.setState({
+                        ...this.state,
+                        ToleranceData: {
+                            ...this.state.ToleranceData,
+                            min: {time1: new Date(serverDAta[counterMin - 1].time * 1000).toLocaleTimeString('en-GB'),
+                                    time2: new Date(serverDAta[counterMin].time * 1000).toLocaleTimeString('en-GB')}
+                        },
+                    })
+                }
+            }
+            if (!this.state.userSession) {
+                localStorage.setItem('tolerance', JSON.stringify(this.state.ToleranceData));
+            }
+        }
+    }
+
+    controlChartVisibility(type: string): void {
         switch(type) { 
             case 'high': {
                 this.setState({
                     ...this.state,
                     makeChartVisible: {
-                        high: !this.state.makeChartVisible.high,
-                        average: this.state.makeChartVisible.average,
-                        low: this.state.makeChartVisible.low
+                        ...this.state.makeChartVisible,
+                        high: !this.state.makeChartVisible.high
                     }
                 });
                 break; 
@@ -251,9 +303,8 @@ export default class CurrencyChart extends React.Component {
                 this.setState({
                     ...this.state,
                     makeChartVisible: {
-                        high: this.state.makeChartVisible.high,
-                        average: !this.state.makeChartVisible.average,
-                        low: this.state.makeChartVisible.low
+                        ...this.state.makeChartVisible,
+                        average: !this.state.makeChartVisible.average
                     }
                 });
                 break; 
@@ -262,14 +313,21 @@ export default class CurrencyChart extends React.Component {
                 this.setState({
                     ...this.state,
                     makeChartVisible: {
-                        high: this.state.makeChartVisible.high,
-                        average: this.state.makeChartVisible.average,
+                        ...this.state.makeChartVisible,
                         low: !this.state.makeChartVisible.low
                     }
                 });
                 break; 
             } 
-            default: { 
+            default: {
+                this.setState({
+                    ...this.state,
+                    makeChartVisible: {
+                        high: true,
+                        low: true,
+                        average: true
+                    }
+                });
                 break; 
             } 
         }
@@ -286,8 +344,8 @@ export default class CurrencyChart extends React.Component {
                     <ChartControler average={this.state.makeChartVisible.average}
                                     high={this.state.makeChartVisible.high}
                                     low={this.state.makeChartVisible.low}
-                                    click={this.makeChartVisible.bind(this)}/>
-                    {/* <CurrencyRange  /> */}
+                                    click={this.controlChartVisibility.bind(this)}/>
+                    <CurrencyRange max={this.state.ToleranceData.max} min={this.state.ToleranceData.min}/>
                 </section>
             </>
         )
