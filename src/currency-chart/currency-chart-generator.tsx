@@ -242,7 +242,7 @@ export default class CurrencyChartGenerator extends React.Component {
         })
     }
 
-    setToleranceData(serverDAta: CurrencyData[]) {
+    setToleranceData(serverDAta: CurrencyData[]): void {
         debugger;
         if (serverDAta) {
             let lastHighValueMax: number = serverDAta[0].high,
